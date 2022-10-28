@@ -10,6 +10,7 @@
        01  CT-CONSTANTS.
            05  CT-TURNS         PIC 9(08)    VALUE 1.
            05  CT-FILLER-LINE   PIC X(100)   VALUE ALL '-'.
+           05  CT-WAIT          PIC 9V999    VALUE 1,000.
            05  CT-CANVAS-WIDTH  PIC 9(03)    VALUE 100.
            05  CT-CANVAS-HEIGHT PIC 9(03)    VALUE 40.
            05  CT-SCREEN-HEIGHT PIC 9(03)    VALUE 41.
@@ -17,7 +18,7 @@
            05  CT-CHANCE-OF-INITIAL-CELL
                                 PIC 9V999    VALUE 0,333.
            05  CT-LIVING-CELL   PIC X        VALUE '@'.             
-           05  CT-EMPTY-CELL    PIC X        VALUE '.'.
+           05  CT-EMPTY-CELL    PIC X        VALUE ' '.
 
        01  WS-VECTOR            OCCURS 100 TIMES.
            05  WS-LINE          PIC X(100)   VALUE SPACES.
@@ -52,12 +53,20 @@
            05  VALUE '         WRITE S AND WRITE A SEED TO GENERATE '
                                             LINE 7 COL 1.
            05  VALUE 'A SPECIFIC FIELD'     LINE 7 COL + 1.
-           05  VALUE 'GRID HEIGHT (MAX 40): '      LINE 11 COL 2.
-           05  SC-HEIGHT       PIC 9(03)    
-               TO CT-CANVAS-HEIGHT          LINE 11 COL + 1.
-           05  VALUE 'GRID WIDTH (MAX 100): '       LINE 13 COL 2.
+           05  VALUE 'GRID HEIGHT (MAX 40) (INIT AT 40): '    
+                                            LINE 11 COL 2.
+           05  SC-HEIGHT       PIC 9(02)    
+               TO CT-CANVAS-HEIGHT          LINE 11 COL + 3.
+           05  VALUE 'GRID WIDTH (MAX 100) (INIT AT 100): '      
+                                            LINE 13 COL 2.
            05  SC-WIDTH        PIC 9(03)    
-               TO CT-CANVAS-WIDTH           LINE 13 COL + 1.
+               TO CT-CANVAS-WIDTH           LINE 13 COL + 2.
+           05  VALUE 'SECONDS PER TICK: '   LINE 15 COL 2.
+           05  SC-SPEED       PIC 9    
+               TO CT-WAIT(1:1)  LINE 15 COL + 1.
+           05  VALUE '.'        LINE 15 COL + 1.
+           05  SC-SPEED-2     PIC 9(03)
+               TO CT-WAIT(2:3)  LINE 15 COL + 1.
            05  VALUE 'SEED: '               LINE 20 COL 2.
            05  SC-SEED         PIC X(80)    TO WS-SEED
                                             LINE 20 COL + 1.
@@ -73,68 +82,57 @@
            05  SC-COMMAND      PIC X        TO WS-COMMAND 
                BLINK                   LINE CT-SCREEN-HEIGHT COL 99.
 
-
-
        PROCEDURE DIVISION.
        MAIN-PROGRAM.
-
            DISPLAY MAIN-MENU.
-
            ACCEPT  MAIN-MENU.
+           
+           IF CT-CANVAS-HEIGHT = 0 MOVE  40 TO CT-CANVAS-HEIGHT.
+           IF CT-CANVAS-WIDTH  = 0 MOVE 100 TO CT-CANVAS-WIDTH.
+           IF CT-WAIT          = 0 MOVE 9,999 TO CT-WAIT.
+           IF WS-COMMAND = ' '     MOVE 'R' TO WS-COMMAND.
 
            COMPUTE CT-SCREEN-HEIGHT = CT-CANVAS-HEIGHT + 1.
-
            PERFORM 1000-INIT  
            THRU  F-1000-INIT.
-
            PERFORM 2000-PROCESS
            THRU  F-2000-PROCESS
-           UNTIL WS-COMMAND = 'X'.
-
+           UNTIL WS-COMMAND = 'X' OR WS-COMMAND = 'x'.
            PERFORM 9999-FINAL   
            THRU  F-9999-FINAL.
-
        F-MAIN-PROGRAM. GOBACK.
 
        1000-INIT.
-
-           MOVE FUNCTION CURRENT-DATE (1:18) TO WS-FECHA.
-           MOVE FUNCTION RANDOM(WS-FECHA) TO WS-FECHA.
-           
-           EVALUATE WS-COMMAND
-           
-               WHEN 'R'
-
+           EVALUATE WS-COMMAND 
+               WHEN 'R' WHEN 'r'
+                   MOVE FUNCTION CURRENT-DATE (1:18) TO WS-FECHA 
+                   MOVE FUNCTION RANDOM(WS-FECHA) TO WS-FECHA 
                    PERFORM 1500-CREATE-RANDOM-CELLS
                    THRU  F-1500-CREATE-RANDOM-CELLS
                    VARYING WS-X FROM 1 BY 1
                    UNTIL   WS-X > CT-CANVAS-HEIGHT
-
-               WHEN 'S'
-
+               WHEN 'S' WHEN 's'
                    PERFORM 1750-CALCULATE-SEED
                    THRU  F-1750-CALCULATE-SEED
                    VARYING WS-X FROM 1 BY 1
                    UNTIL   WS-X > CT-CANVAS-HEIGHT
-           
            END-EVALUATE.
 
            PERFORM 3100-CLEAR-SCREEN
            THRU    3100-CLEAR-SCREEN.
 
-           MOVE 'R: Refresh; S: Switch display mode; C: Compute state'
-                TO SC-MESSAGE.
-
+           MOVE 'R: Refresh; S: Switch display mode; C: Compute state; '
+             TO SC-MESSAGE(1:54) 
+           MOVE 'H: Help; X: Finish'
+             TO SC-MESSAGE(55:26)
            PERFORM 3000-DISPLAY-SCREEN
            THRU  F-3000-DISPLAY-SCREEN
            VARYING WS-X FROM 1 BY 1 
            UNTIL   WS-X > CT-CANVAS-HEIGHT. 
            MOVE SPACES TO SC-LINE.
-
        F-1000-INIT. EXIT.
 
        1500-CREATE-RANDOM-CELLS.
-
            PERFORM VARYING WS-Y FROM 1 BY 1 UNTIL WS-Y > CT-CANVAS-WIDTH
                IF FUNCTION RANDOM() < CT-CHANCE-OF-INITIAL-CELL
                    MOVE 1 TO WS-CELL(WS-X,WS-Y)
@@ -144,23 +142,17 @@
                    MOVE CT-EMPTY-CELL TO WS-LINE(WS-X)(WS-Y : 1)
                END-IF
            END-PERFORM. 
-
        F-1500-CREATE-RANDOM-CELLS. EXIT.
 
        1750-CALCULATE-SEED.
-
            CONTINUE.
-
        F-1750-CALCULATE-SEED. EXIT.
 
        2000-PROCESS.
-
-           ACCEPT GRID-SCREEN.
-
+           ACCEPT GRID-SCREEN TIMEOUT CT-WAIT.
+           IF WS-COMMAND = SPACES MOVE 'C' TO WS-COMMAND.
            EVALUATE WS-COMMAND
-
-               WHEN 'C'
-
+               WHEN 'C' WHEN 'c'
                    PERFORM 4000-CHECK-NEIGHBOR-CELLS
                    THRU  F-4000-CHECK-NEIGHBOR-CELLS
                    VARYING WS-X FROM 1 BY 1 
@@ -175,15 +167,13 @@
       *            THRU    3100-CLEAR-SCREEN
 
                    MOVE 'Calculating next status' TO SC-MESSAGE
-
+                  
                    PERFORM 3000-DISPLAY-SCREEN
                    THRU  F-3000-DISPLAY-SCREEN
                    VARYING WS-X FROM 1 BY 1
                    UNTIL   WS-X > CT-CANVAS-HEIGHT
                    MOVE SPACES TO SC-LINE
-
-               WHEN 'R'
-
+               WHEN 'R' WHEN 'r'
                    PERFORM 3100-CLEAR-SCREEN
                    THRU    3100-CLEAR-SCREEN
 
@@ -193,10 +183,7 @@
                    THRU  F-3000-DISPLAY-SCREEN
                    VARYING WS-X FROM 1 BY 1
                    UNTIL   WS-X > CT-CANVAS-HEIGHT
-                   MOVE SPACES TO SC-LINE
-
-               WHEN 'S'
-                  
+               WHEN 'S' WHEN 's'
                    PERFORM 3600-SWITCH-CELL
                    THRU  F-3600-SWITCH-CELL
                    VARYING WS-X FROM 1 BY 1 
@@ -210,89 +197,83 @@
                    VARYING WS-X FROM 1 BY 1
                    UNTIL   WS-X > CT-CANVAS-HEIGHT
                    MOVE SPACES TO SC-LINE
-                   
-           END-EVALUATE.
+               WHEN 'H' WHEN 'h'
+                    MOVE
+               'R: Refresh; S: Switch display mode; C: Compute state; '
+                    TO SC-MESSAGE(1:54) 
+                    MOVE 'H: Help; X: Finish'
+                    TO SC-MESSAGE(55:26)
+                   PERFORM 3100-CLEAR-SCREEN
+                   THRU    3100-CLEAR-SCREEN
 
+                   PERFORM 3000-DISPLAY-SCREEN
+                   THRU  F-3000-DISPLAY-SCREEN
+                   VARYING WS-X FROM 1 BY 1
+                   UNTIL   WS-X > CT-CANVAS-HEIGHT
+                   MOVE SPACES TO SC-LINE
+               WHEN 'D' WHEN 'd'
+                   MOVE 'R' TO WS-COMMAND
+                   PERFORM 1000-INIT
+                   THRU  F-1000-INIT
+            END-EVALUATE.
+            IF WS-COMMAND NOT = 'X' OR
+               WS-COMMAND NOT = 'x'
+                    MOVE SPACES TO WS-COMMAND.
        F-2000-PROCESS. EXIT.
        
        3000-DISPLAY-SCREEN.
-
            MOVE WS-LINE(WS-X) TO SC-LINE.
            DISPLAY GRID-SCREEN.
-
        F-3000-DISPLAY-SCREEN. EXIT.
 
        3100-CLEAR-SCREEN.
-
            DISPLAY CLEAR-SCREEN.
-
        F-3100-CLEAR-SCREEN. EXIT.
 
        3500-OVERWRITE-CELL.
-
            PERFORM 6000-PREPARE-LINE-FOR-CELLS
            THRU  F-6000-PREPARE-LINE-FOR-CELLS
-           VARYING WS-Y FROM 1 BY 1
-           UNTIL   WS-Y > CT-CANVAS-WIDTH.
-
+             VARYING WS-Y FROM 1 BY 1
+             UNTIL   WS-Y > CT-CANVAS-WIDTH.
        F-3500-OVERWRITE-CELL. EXIT.
 
        3600-SWITCH-CELL.
-
            IF WS-LINE(WS-X)(1 : 1) = '@' OR
               WS-LINE(WS-X)(1 : 1) = '.'
-
                PERFORM 6000-PREPARE-LINE-FOR-DISPLAY
                THRU  F-6000-PREPARE-LINE-FOR-DISPLAY
-               VARYING WS-Y FROM 1 BY 1
-               UNTIL   WS-Y > CT-CANVAS-WIDTH
-
+                 VARYING WS-Y FROM 1 BY 1
+                 UNTIL   WS-Y > CT-CANVAS-WIDTH
                MOVE 'Displaying previous neighbors' TO SC-MESSAGE
-
            ELSE
-
                PERFORM 6000-PREPARE-LINE-FOR-CELLS
                THRU  F-6000-PREPARE-LINE-FOR-CELLS
-               VARYING WS-Y FROM 1 BY 1
-               UNTIL   WS-Y > CT-CANVAS-WIDTH
-
+                 VARYING WS-Y FROM 1 BY 1
+                 UNTIL   WS-Y > CT-CANVAS-WIDTH
                MOVE 'Displaying cells' TO SC-MESSAGE
-
            END-IF.
-
        F-3600-SWITCH-CELL. EXIT.
 
        4000-CHECK-NEIGHBOR-CELLS.
-
            INITIALIZE WS-ARRAY2(WS-X).
-
            PERFORM 5000-CHECK-CORNER-CASES
            THRU  F-5000-CHECK-CORNER-CASES
-           VARYING WS-Y FROM 1 BY 1
-           UNTIL   WS-Y > CT-CANVAS-WIDTH.
-
+             VARYING WS-Y FROM 1 BY 1
+             UNTIL   WS-Y > CT-CANVAS-WIDTH.
        F-4000-CHECK-NEIGHBOR-CELLS. EXIT.
 
        5000-CHECK-CORNER-CASES.
-
            EVALUATE WS-X
              WHEN 1
-
                PERFORM 5100-UPPER-LINE
                THRU  F-5100-UPPER-LINE
-             
              WHEN CT-CANVAS-HEIGHT
-
                PERFORM 5200-LOWER-LINE
                THRU  F-5200-LOWER-LINE 
-
              WHEN OTHER
-
                PERFORM 5300-MIDDLE-LINES
                THRU  F-5300-MIDDLE-LINES
-
            END-EVALUATE.
-
            IF  WS-CELL(WS-X,WS-Y) = 1
                AND (WS-NEIGHBORS(WS-X,WS-Y) < 2 
                    OR WS-NEIGHBORS(WS-X,WS-Y) > 3)
@@ -301,168 +282,115 @@
                 AND WS-NEIGHBORS(WS-X,WS-Y) = 3
                    MOVE 1 TO WS-CELL(WS-X,WS-Y)
            END-IF.
-
        F-5000-CHECK-CORNER-CASES. EXIT.
 
        5100-UPPER-LINE.
-       
            EVALUATE WS-Y
              WHEN 1
-
                PERFORM VARYING   WS-X-AUX 
                FROM 2 BY 1 UNTIL WS-X-AUX > 3
-
                    PERFORM 5300-ADD-NEIGHBOR
                    THRU  F-5300-ADD-NEIGHBOR
                    VARYING WS-Y-AUX FROM 2 BY 1 
                    UNTIL   WS-Y-AUX > 3
-
                END-PERFORM  
-
              WHEN CT-CANVAS-WIDTH
-
                PERFORM VARYING   WS-X-AUX 
                FROM 2 BY 1 UNTIL WS-X-AUX > 3
-
                    PERFORM 5300-ADD-NEIGHBOR
                    THRU  F-5300-ADD-NEIGHBOR
                    VARYING WS-Y-AUX FROM 1 BY 1 
                    UNTIL   WS-Y-AUX > 2
-
                END-PERFORM
-
              WHEN OTHER
-
                PERFORM VARYING   WS-X-AUX 
                FROM 2 BY 1 UNTIL WS-X-AUX > 3
-
                    PERFORM 5300-ADD-NEIGHBOR
                    THRU  F-5300-ADD-NEIGHBOR
                    VARYING WS-Y-AUX FROM 1 BY 1 
                    UNTIL   WS-Y-AUX > 3
-
                END-PERFORM
-
            END-EVALUATE.
-
        F-5100-UPPER-LINE. EXIT.
 
        5200-LOWER-LINE.
-
            EVALUATE WS-Y
              WHEN 1
-
                PERFORM VARYING   WS-X-AUX 
                FROM 1 BY 1 UNTIL WS-X-AUX > 2
-
                    PERFORM 5300-ADD-NEIGHBOR
                    THRU  F-5300-ADD-NEIGHBOR
                    VARYING WS-Y-AUX FROM 2 BY 1 
                    UNTIL   WS-Y-AUX > 3
-
                END-PERFORM  
-
-             WHEN CT-CANVAS-WIDTH
-
                PERFORM VARYING   WS-X-AUX 
                FROM 1 BY 1 UNTIL WS-X-AUX > 2
-
                    PERFORM 5300-ADD-NEIGHBOR
                    THRU  F-5300-ADD-NEIGHBOR
                    VARYING WS-Y-AUX FROM 1 BY 1 
                    UNTIL   WS-Y-AUX > 2
-
                END-PERFORM
-
              WHEN OTHER
-
                PERFORM VARYING   WS-X-AUX 
                FROM 1 BY 1 UNTIL WS-X-AUX > 2
-
                    PERFORM 5300-ADD-NEIGHBOR
                    THRU  F-5300-ADD-NEIGHBOR
                    VARYING WS-Y-AUX FROM 1 BY 1 
                    UNTIL   WS-Y-AUX > 3 
-
                END-PERFORM
-
            END-EVALUATE.
-
        F-5200-LOWER-LINE. EXIT.
 
        5300-MIDDLE-LINES.
-
                EVALUATE WS-Y
                  WHEN 1
-
                    PERFORM VARYING   WS-X-AUX 
                    FROM 1 BY 1 UNTIL WS-X-AUX > 3
-
                        PERFORM 5300-ADD-NEIGHBOR
                        THRU  F-5300-ADD-NEIGHBOR
                        VARYING WS-Y-AUX FROM 2 BY 1 
                        UNTIL   WS-Y-AUX > 3
-
                    END-PERFORM  
-
                  WHEN CT-CANVAS-WIDTH
-
                    PERFORM VARYING   WS-X-AUX 
                    FROM 1 BY 1 UNTIL WS-X-AUX > 3
-
                        PERFORM 5300-ADD-NEIGHBOR
                        THRU  F-5300-ADD-NEIGHBOR
                        VARYING WS-Y-AUX FROM 1 BY 1 
                        UNTIL   WS-Y-AUX > 2
-
                    END-PERFORM
-
                  WHEN OTHER
-
                    PERFORM VARYING   WS-X-AUX 
                    FROM 1 BY 1 UNTIL WS-X-AUX > 3
-
                        PERFORM 5300-ADD-NEIGHBOR
                        THRU  F-5300-ADD-NEIGHBOR
                        VARYING WS-Y-AUX FROM 1 BY 1 
                        UNTIL   WS-Y-AUX > 3 
-
                    END-PERFORM
-
                END-EVALUATE.
-
        F-5300-MIDDLE-LINES. EXIT.
 
-
        5300-ADD-NEIGHBOR.
-
            IF  NOT(WS-X-AUX = 2 AND WS-Y-AUX = 2) 
                AND WS-LINE(WS-X - 2 + WS-X-AUX)(WS-Y - 2 + WS-Y-AUX : 1)
                    = CT-LIVING-CELL
                ADD 1
                TO  WS-NEIGHBORS(WS-X,WS-Y)
            END-IF.
-
        F-5300-ADD-NEIGHBOR. EXIT.
 
        6000-PREPARE-LINE-FOR-DISPLAY.
-
            MOVE WS-NEIGHBORS(WS-X,WS-Y) TO WS-LINE(WS-X)(WS-Y : 1).
-
        F-6000-PREPARE-LINE-FOR-DISPLAY. EXIT.
 
        6000-PREPARE-LINE-FOR-CELLS.
-
            IF  WS-CELL(WS-X,WS-Y) = 1
                MOVE CT-LIVING-CELL TO WS-LINE(WS-X)(WS-Y : 1) 
            ELSE 
                MOVE CT-EMPTY-CELL TO WS-LINE(WS-X)(WS-Y : 1)
            END-IF.
-
        F-6000-PREPARE-LINE-FOR-CELLS. EXIT.
 
        9999-FINAL.
-
            CONTINUE.
-       
        F-9999-FINAL. EXIT.
