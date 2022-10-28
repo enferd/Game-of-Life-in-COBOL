@@ -6,7 +6,7 @@ I wrote it in two "flavors":
 
 - Display Edition: This edition is a simple, print to paper, state by state program that, as implied, just does the equivalent of C as a bunch of printfs that are separated by a line, this edition is Compatible with Enterprise COBOL standards and thus it can be played in an original Z/OS Mainframe, as long as your boss doesn't see you, and the Mainframe is competent enough to run like, 5 perform varyings per state (for non-COBOL-programmers, a PERFORM VARYING is just a for loop with a lot of struggling involved).
 
-- Screen Edition: Following the GNU/COBOL standard, but probably also accesible for those running other standards (MicroFocus for example), this edition is a more fleshed out version that, as the name says, uses the SCREEN SECTION for programming various screens, configurable menus, and other stuff I want to implement.
+- Screen Edition: Following the GNU/COBOL standard, but probably also accessible for those running other standards (MicroFocus for example), this edition is a more fleshed out version that, as the name says, uses the SCREEN SECTION for programming various screens, configurable menus, and other stuff I want to implement.
 
 ## Installation
 
